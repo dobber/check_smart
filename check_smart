@@ -1,0 +1,72 @@
+#!/bin/bash
+# Nagios plugin to monitor smart status for all disks. Zero configuration required.
+# Tested agains smartmontools 6.1. Read the exit codes to understand all drives statuses
+# by Ivan Dimitrov https://github.com/dobber
+# For Ancient Media Ltd.
+
+# Sensor program
+SMARTCTL=/usr/sbin/smartctl
+# You can add -d scsi here if you require it.
+SMARTOPTS="-H -l selftest -l error"
+
+# Exit codes
+STATE_OK=0 # All drives report good status
+STATE_WARNING=1 # failed self-test
+STATE_CRITICAL=2 # failed drive
+STATE_UNKNOWN=3 # no hard drives installed or no S.M.A.R.T. capabilities
+
+# Initialize some variables
+baddrives=()
+warndrives=()
+# drives count. If there are no drives in the system, return STATE_UNKNOWN
+INDEX=0
+
+
+if [[ ! -x $SMARTCTL ]] ; then
+	echo "There is no $SMARTCTL. Install smartmontools or configure the script."
+	exit  $STATE_UNKNOWN
+fi
+
+# check the status of all drives
+for drive in `ls /dev/sd[qwertyuiopasdfghjklzxcvbnm]` ; do
+	overalhealth=`sudo $SMARTCTL $SMARTOPTS $drive | grep result | awk '{print $6}'`
+	selftest=`sudo $SMARTCTL $SMARTOPTS $drive | grep "# 1" | awk '{print $5, $6, $7}'`
+
+	if [[ -n "$overalhealth" && "$overalhealth" == "FAILED!" ]] ; then
+		# error should be raised
+		baddrives=(${baddrives[@]}  $drive)
+		let INDEX+=1
+	elif [[ -n "$selftest" && "$selftest" == "Completed: read failure" ]] ; then
+		# warnings should be raised
+		warndrives=(${warndrives[@]} $drive)
+		let INDEX+=1
+	elif [[ -n "$overalhealth" || -n "$selftest" ]] ; then
+		# all is fine here, just count the drives
+		let INDEX+=1
+	fi
+done
+
+# check if there are answers
+if [[ $INDEX -eq 0 ]] ; then
+	echo "There are no hard drives or S.M.A.R.T. is disabled"
+	exit $STATE_UNKNOWN
+fi
+
+# check for critical bad drives
+if [[ ${#baddrives[@]} -gt 0 ]] ; then
+	# if there are critical and self-test errors, print them both under one status
+	if [[ ${#warndrives[@]} -gt 0 ]] ; then
+		WARN="Additional drive(s) with self-test errors: ${warndrives[@]}"
+	fi
+	echo "S.M.A.R.T. CRITICAL - Drive(s) ${baddrives[@]} may fail within 24 hours. $WARN"
+	exit $STATE_CRITICAL
+fi
+
+# check for failed self-test
+if [[ ${#warndrives[@]} -gt 0 ]] ; then
+	echo "S.M.A.R.T. WARNING - Drive(s) ${warndrives[@]} have self-test errors."
+	exit $STATE_WARNING
+fi
+
+echo "S.M.A.R.T. OK - All drives are healthy."
+exit $STATE_OK
