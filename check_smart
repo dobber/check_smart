@@ -28,9 +28,11 @@ if [[ ! -x $SMARTCTL ]] ; then
 fi
 
 # check the status of all drives
-for drive in `ls /dev/sd[qwertyuiopasdfghjklzxcvbnm]` ; do
-	overalhealth=`sudo $SMARTCTL $SMARTOPTS $drive | grep result | awk '{print $6}'`
-	selftest=`sudo $SMARTCTL $SMARTOPTS $drive | grep "# 1" | awk '{print $5, $6, $7}'`
+# if there are no disks (strange controllers, vpses), return STATE_UNKNOWN
+for drive in `ls /dev/sd[qwertyuiopasdfghjklzxcvbnm] 2>/dev/null` ; do
+	result=`sudo $SMARTCTL $SMARTOPTS $drive`
+	overalhealth=`echo $result | grep result | awk '{print $6}'`
+	selftest=`echo $result | grep "# 1" | awk '{print $5, $6, $7}'`
 
 	if [[ -n "$overalhealth" && "$overalhealth" == "FAILED!" ]] ; then
 		# error should be raised
