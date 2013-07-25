@@ -29,7 +29,7 @@ fi
 
 # check the status of all drives
 # if there are no disks (strange controllers, vpses), return STATE_UNKNOWN
-for drive in `ls /dev/sd[qwertyuiopasdfghjklzxcvbnm] 2>/dev/null` ; do
+for drive in `ls /dev/sd{a..z} 2>/dev/null` ; do
 	result=`sudo $SMARTCTL $SMARTOPTS $drive`
 	overalhealth=`echo $result | grep result | awk '{print $6}'`
 	selftest=`echo $result | grep "# 1" | awk '{print $5, $6, $7}'`
