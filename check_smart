@@ -5,32 +5,38 @@
 # For Ancient Media Ltd.
 
 # Sensor program
-SMARTCTL=/usr/sbin/smartctl
+SPATH=("/usr/sbin/smartctl" "/usr/local/sbin/smartctl")
+for binary in ${SPATH[@]} ; do
+	if [ -x ${binary} ] ; then
+		SMARTCTL=$binary
+	fi
+done
+
 # You can add -d scsi here if you require it.
 SMARTOPTS="-H -l selftest -l error"
 
 # Exit codes
-STATE_OK=0 # All drives report good status
+STATE_OK=0 # All drives report good status or no hard drives installed
 STATE_WARNING=1 # failed self-test
 STATE_CRITICAL=2 # failed drive
-STATE_UNKNOWN=3 # no hard drives installed or no S.M.A.R.T. capabilities
+STATE_UNKNOWN=3 # no S.M.A.R.T. capabilities
 
 # Initialize some variables
 baddrives=()
 warndrives=()
-# drives count. If there are no drives in the system, return STATE_UNKNOWN
+# drives count. If there are no drives in the system, return STATE_OK
 INDEX=0
 
 
-if [[ ! -x $SMARTCTL ]] ; then
-	echo "There is no $SMARTCTL. Install smartmontools or configure the script."
+if [[ ! -x ${SMARTCTL} ]] ; then
+	echo "There is no ${SMARTCTL}. Install smartmontools or configure the script."
 	exit  $STATE_UNKNOWN
 fi
 
 # check the status of all drives
-# if there are no disks (strange controllers, vpses), return STATE_UNKNOWN
+# if there are no disks (strange controllers, vpses), return STATE_OK
 for drive in `ls /dev/sd{a..z} 2>/dev/null` ; do
-	result=`sudo $SMARTCTL $SMARTOPTS $drive`
+	result=`sudo ${SMARTCTL} $SMARTOPTS $drive`
 	overalhealth=`echo $result | grep result | awk '{print $6}'`
 	selftest=`echo $result | grep "# 1" | awk '{print $5, $6, $7}'`
 
@@ -51,7 +57,7 @@ done
 # check if there are answers
 if [[ $INDEX -eq 0 ]] ; then
 	echo "There are no hard drives or S.M.A.R.T. is disabled"
-	exit $STATE_UNKNOWN
+	exit $STATE_OK
 fi
 
 # check for critical bad drives
