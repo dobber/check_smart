@@ -36,9 +36,9 @@ fi
 # check the status of all drives
 # if there are no disks (strange controllers, vpses), return STATE_OK
 for drive in `ls /dev/sd{a..z} 2>/dev/null` ; do
-	result=`sudo ${SMARTCTL} $SMARTOPTS $drive`
-	overalhealth=`echo $result | grep result | awk '{print $6}'`
-	selftest=`echo $result | grep "# 1" | awk '{print $5, $6, $7}'`
+	result=`sudo ${SMARTCTL} ${SMARTOPTS} $drive`
+	overalhealth=`echo "$result" | grep result | awk '{print $6}'`
+	selftest=`echo "$result" | grep "# 1" | awk '{print $5, $6, $7}'`
 
 	if [[ -n "$overalhealth" && "$overalhealth" == "FAILED!" ]] ; then
 		# error should be raised
